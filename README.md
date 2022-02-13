@@ -29,7 +29,7 @@ or, wherever AGI scripts run on your server.  You will need to create the `otp` 
 
 In your `extensions.conf`, you can insert something like this:
 
-`
+```
 ; It is extremely important to check the ${ASTOTP} variable result, as a
 ; missing script or python exception could cause a bypass
 exten => 777,1,Answer
@@ -38,20 +38,23 @@ same => n,AGI(otp/astotp.py)
 same => n,GotoIf($["${ASTOTP}" == ""]?hangup)
 same => n,MusicOnHold(default,60)
 same => n(hangup),NoOp
-same => n,Hangup()`
+same => n,Hangup()
+```
 
 You will need to edit `astotp.py` to provide a file or database lookup mechanism.  This example is hard-coded for example purposes.
 
 The secret to enter into the Google Authenticator app for this demo is in function
-`
+```
 def lookupUserSecret( self, userID ):
 	return 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-`
+```
 
 These are normally added by use of a QR code.  If you would like to contribute by writing such code, please feel free to contact me.
 
 UserID and PIN are in function
 
-`def lookupUserPin( self, userID ):`
+```
+def lookupUserPin( self, userID ):
+```
 
 When you authenticate successfully, you will be rewarded with some hold music, otherwise you should get a "goodbye" and hangup.  In reality, you would progress to your control IVR menu.
