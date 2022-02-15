@@ -33,12 +33,13 @@ In your `extensions.conf`, you can insert something like this:
 ; It is extremely important to check the ${ASTOTP} variable result, as a
 ; missing script or python exception could cause a bypass
 exten => 777,1,Answer
-same => n,Set(ASTOPT="")
-same => n,AGI(otp/astotp.py)
-same => n,GotoIf($["${ASTOTP}" == ""]?hangup)
-same => n,MusicOnHold(default,60)
-same => n(hangup),NoOp
-same => n,Hangup()
+ same => n,Set(ASTOPT="")
+ same => n,AGI(otp/astotp.py)
+ same => n,GotoIf($["${ASTOTP}" == "SUCCESS"]?auth_success)
+ same => n(hangup),NoOp
+ same => n,Hangup()
+ same => n(auth_success),NoOp
+ same => n,MusicOnHold(default,60)
 ```
 
 You will need to edit `astotp.py` to provide a file or database lookup mechanism.  This example is hard-coded for example purposes.
