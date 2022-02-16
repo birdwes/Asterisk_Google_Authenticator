@@ -53,7 +53,7 @@ class GoogleOTPfileLookup( GoogleOTP ):
             return "1234"
         if userId == "0002":
             return "5678"
-        return ""
+        return "invalid pin"
 
 # End of class
 
