@@ -1,14 +1,4 @@
-#!/bin/env python3
-
-import sys
-import hashlib
-import hmac
-import base64
-import secrets
-import re
-import datetime
-from datetime import timezone
-import math
+#!/usr/bin/env python3
 
 # Implementation of Google Authenticator verification
 
@@ -50,8 +40,26 @@ Modifications to convert to python
     Copyright (c) 2022, Iain W. Bird.
 """
 
+import sys
+import hashlib
+import hmac
+import base64
+import secrets
+import re
+import datetime
+from datetime import timezone
+import math
+
 class GoogleOTP:
     def generateSecret(self):
+        """
+        Returns a newly generated secret.
+
+        This would normally be issued to a new user, or
+        to replace one where their authenticator device
+        has been lost, replaced or compromised.
+        """
+
         secret = secrets.token_bytes(20)
         secretencoded = base64.b32encode(secret).decode("utf-8")
         secretstring = re.sub('=', '',secretencoded,0)
@@ -102,12 +110,16 @@ class GoogleOTP:
         return False
 
     def lookupUserSecret( self, userID ):
+        """
+        Abstract placeholder for a derrived class to fetch
+        the secret belonging to a specific userID
+        """
         return ""
 
-    def verify( self, userID, pin ):
+    def verify( self, userID, token ):
         secret = self.lookupUserSecret( str( userID ) )
         if len( secret ) == 0:
             return False
 
-        bResult = self.verifyTOTP(pin, secret, window = 1)
+        bResult = self.verifyTOTP(token, secret, window = 1)
         return bResult 

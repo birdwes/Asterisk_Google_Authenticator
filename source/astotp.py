@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 
 """
 MIT License
@@ -36,13 +36,16 @@ SOFTWARE.
 from asterisk.agi import *
 from GoogleOTP import GoogleOTP
 import os
-
+import sys
 
 # This class is hard-coded for demonstration purposes only.
 # Replace the methods too look up from a file or a database.
 
 class GoogleOTPfileLookup( GoogleOTP ):
     def lookupUserSecret( self, userID ):
+        """
+        for a specified userID, return their secret
+        """
         return 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 
     def lookupUserPin( self, userID ):
@@ -71,72 +74,89 @@ def getDigits( agi, nDigits ):
 
     return strResult
 
-agi = AGI()
-otp = GoogleOTPfileLookup()
+def goodbyeHangup():
+    agi.wait_for_digit(1000)    # Not getting digits, just a pause
+    agi.control_stream_file( path + "goodbye")
+    # The following pause is for VoIP clients that have a lag, where the control
+    # channel disconnects the call before RTP has finished saying "goodbye".
+    agi.wait_for_digit(2000)    # Not getting digits, just a pause
+    agi.verbose( "astotp: Hangup." )
+    agi.hangup()
+    sys.exit()
 
-agi.verbose( os.getcwd() )
-# Path to the audio files
-path = "/var/lib/asterisk/agi-bin/otp/sounds/"
+try:    
+    agi = AGI()
+    otp = GoogleOTPfileLookup()
 
-# raise AGIError("TEST")
+    agi.verbose( os.getcwd() )
+    # Path to the audio files
+    path = "/var/lib/asterisk/agi-bin/otp/sounds/"
 
-agi.control_stream_file( path + "need_to_be_authenticated")
-agi.wait_for_digit(1000)    # Not getting digits, just a pause
+    # raise AGIError("TEST")
 
-for retries in range(3):
-    agi.control_stream_file( path + "please_enter_userid")
-    userId = getDigits(agi,4)
-    if userId == "":
-        if retries < 2:
-            agi.control_stream_file( path + "please_try_again")
+    agi.control_stream_file( path + "need_to_be_authenticated")
+    agi.wait_for_digit(1000)    # Not getting digits, just a pause
+
+    agi.verbose( "astotp: Obtain userID." )
+    for retries in range(3):
+        agi.control_stream_file( path + "please_enter_userid")
+        userId = getDigits(agi,4)
+        if userId == "":
+            if retries < 2:
+                agi.control_stream_file( path + "please_try_again")
+            else:
+                goodbyeHangup()
         else:
-            agi.wait_for_digit(1000)    # Not getting digits, just a pause
-            agi.control_stream_file( path + "goodbye")
-            agi.hangup()
-    else:
-        break
+            break
 
-agi.control_stream_file( path + "thank_you")
-expected_pin = otp.lookupUserPin( userId )
+    agi.control_stream_file( path + "thank_you")
+    expected_pin = otp.lookupUserPin( userId )
 
-blnMatch = False
+    blnMatch = False
 
-for retries in range(3):
-    agi.control_stream_file( path + "enter_pin")
-    pin = getDigits(agi,4)
-    if pin != expected_pin:
-        agi.control_stream_file( path + "did_not_match")
-        if retries < 2:
-            agi.control_stream_file( path + "please_try_again")
-    else:
-        blnMatch = True
-        break
+    agi.verbose( "astotp: Obtain PIN." )
+    for retries in range(3):
+        agi.control_stream_file( path + "enter_pin")
+        pin = getDigits(agi,4)
+        if pin != expected_pin:
+            agi.control_stream_file( path + "did_not_match")
+            if retries < 2:
+                agi.control_stream_file( path + "please_try_again")
+            else:
+                goodbyeHangup()            
+        else:
+            blnMatch = True
+            break
 
-if blnMatch == False:
+    if blnMatch == False:
+        goodbyeHangup()
+
+    blnMatch = False
+
+    agi.verbose( "astotp: Obtain OTP Auth code." )
+    for retries in range(3):
+        agi.control_stream_file( path + "enter_authenticator_code")
+        otpcode = getDigits(agi,6)
+        if otp.verify( userId, otpcode ):
+            blnMatch = True
+            break
+        else:
+            agi.control_stream_file( path + "did_not_match")
+            if retries < 2:
+                agi.control_stream_file( path + "please_try_again")
+
+    if blnMatch == False:
+        goodbyeHangup()
+
+    agi.control_stream_file( path + "auth_success")
     agi.wait_for_digit(1000)    # Not getting digits, just a pause
-    agi.control_stream_file( path + "goodbye")
-    agi.hangup()
+    agi.set_variable("ASTOTP","SUCCESS")
 
-blnMatch = False
+except SystemExit:
+    try:
+        agi.set_variable("ASTOTP","")        
+        agi.verbose( "System Exit exception raised." )
+    finally:
 
-for retries in range(3):
-    agi.control_stream_file( path + "enter_authenticator_code")
-    otpcode = getDigits(agi,6)
-    if otp.verify( userId, otpcode ):
-        blnMatch = True
-        break
-    else:
-        agi.control_stream_file( path + "did_not_match")
-        if retries < 2:
-            agi.control_stream_file( path + "please_try_again")
-
-if blnMatch == False:
-    agi.wait_for_digit(1000)    # Not getting digits, just a pause
-    agi.control_stream_file( path + "goodbye")
-    agi.hangup()
-
-agi.control_stream_file( path + "auth_success")
-agi.wait_for_digit(1000)    # Not getting digits, just a pause
-agi.set_variable("ASTOTP","SUCCESS")
-
+        pass
 
